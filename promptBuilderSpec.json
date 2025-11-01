@@ -1,0 +1,101 @@
+{
+  "version": "1.0",
+  "task": "product_angle_synthesis",
+  "meta": {
+    "author": "Ayoon • ImageOps MCP",
+    "notes": "Deterministic, catalog-ready prompts for consistent product angles."
+  },
+  "defaults": {
+    "productName": "unbranded product",
+    "material": "",
+    "color": "",
+    "brandCue": "",
+    "background": "neutral-plinth",
+    "lighting": "soft-studio",
+    "shadow": "proportional-soft",
+    "angle": "front-45",
+    "cameraHeight": "waist",
+    "focal": "70mm",
+    "mood": "clean-commercial",
+    "quality": "photo",
+    "ar": "1:1",
+    "safety": true
+  },
+  "enums": {
+    "angle": [
+      "front", "front-45", "side", "rear-45", "rear", "top", "top-45", "macro-detail"
+    ],
+    "background": [
+      "neutral-plinth", "pure-white", "soft-gradient-gray", "shadowed-white",
+      "transparent", "color-card"
+    ],
+    "lighting": [
+      "soft-studio", "broad-softbox", "rim-light", "flat-ecomm", "three-point"
+    ],
+    "shadow": [
+      "none", "proportional-soft", "contact-only", "grounded-long"
+    ],
+    "cameraHeight": ["table", "waist", "eye"],
+    "focal": ["50mm", "70mm", "85mm", "105mm"],
+    "mood": ["clean-commercial", "luxury", "tech", "organic"],
+    "quality": ["photo", "photo-high", "illustrative"]
+  },
+  "builders": {
+    "positive": [
+      "Studio product photo of {{productName}}{{#if material}} made of {{material}}{{/if}}{{#if color}} in {{color}}{{/if}}.",
+      "Angle: {{angle}}. Camera height: {{cameraHeight}}. Lens: {{focal}}.",
+      "Lighting: {{lighting}} with controlled reflections; white cards to reveal form.",
+      "Background: {{background}}; {{#if (eq background \"neutral-plinth\")}}neutral plinth under product{{/if}}.",
+      "Shadow: {{shadow}}, proportional to product scale.",
+      "{{#if brandCue}}Brand visual cue: {{brandCue}} (subtle, non-distracting).{{/if}}",
+      "Mood: {{mood}}. Composition centered, full product in frame, no crops.",
+      "Ultra clean, dust-free, catalog ready, true-to-color, high fidelity."
+    ],
+    "negative": [
+      "no humans, no hands, no logos or text overlays, no watermarks, no extra objects,",
+      "no extreme wide angle distortion, no fisheye, no tilt,",
+      "no messy backgrounds, no reflections that obscure details,",
+      "no motion blur, no low resolution, no compression artifacts"
+    ]
+  },
+  "compose": {
+    "format": "text",
+    "join": " ",
+    "includeNegative": true,
+    "negativePrefix": "Negative prompt: "
+  },
+  "output": {
+    "target": "prompt",
+    "meta": ["angle", "background", "lighting", "shadow", "cameraHeight", "focal", "mood", "ar"]
+  },
+  "examples": [
+    {
+      "name": "Leather Wallet — Front 45°",
+      "input": {
+        "productName": "leather bifold wallet",
+        "material": "full-grain leather",
+        "color": "chestnut brown",
+        "angle": "front-45",
+        "background": "neutral-plinth",
+        "lighting": "soft-studio",
+        "shadow": "proportional-soft",
+        "focal": "70mm",
+        "ar": "1:1"
+      }
+    },
+    {
+      "name": "Sneaker — Side",
+      "input": {
+        "productName": "running sneaker",
+        "material": "mesh and TPU",
+        "color": "white with gray accents",
+        "angle": "side",
+        "background": "pure-white",
+        "lighting": "flat-ecomm",
+        "shadow": "contact-only",
+        "focal": "85mm",
+        "ar": "4:5"
+      }
+    }
+  ]
+}
