@@ -1,0 +1,4 @@
+# CODEOWNERS — default to AzizRay
+# All files in this repository require review by @AzizRay
+
+* @AzizRay
