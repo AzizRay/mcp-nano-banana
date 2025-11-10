@@ -4,8 +4,6 @@ import os
 import base64
 import uuid
 import json
-import httpx
-from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 import google.generativeai as genai
 import requests
@@ -13,7 +11,6 @@ from PIL import Image
 from io import BytesIO
 from urllib.parse import urlparse
 from typing import Dict, Any, Optional
-import re
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -157,34 +154,44 @@ async def generate_image(prompt: str) -> str:
             if not response:
                 raise ImageGenerationError("Gemini API returned empty response")
             
-            response_dict = response.to_dict()
-            
-            # Validate response structure
-            if "candidates" not in response_dict:
-                raise ImageGenerationError("Invalid response structure: missing 'candidates' field")
-            
-            if not response_dict["candidates"]:
+            # Access response attributes directly (AsyncGenerateContentResponse doesn't have to_dict())
+            if not hasattr(response, 'candidates') or not response.candidates:
                 raise ImageGenerationError("No candidates returned from Gemini API")
             
-            candidate = response_dict["candidates"][0]
-            if "content" not in candidate:
+            candidate = response.candidates[0]
+            if not hasattr(candidate, 'content') or not candidate.content:
                 raise ImageGenerationError("Invalid candidate structure: missing 'content' field")
             
-            if "parts" not in candidate["content"]:
+            if not hasattr(candidate.content, 'parts') or not candidate.content.parts:
                 raise ImageGenerationError("Invalid content structure: missing 'parts' field")
             
-            parts = candidate["content"]["parts"]
+            parts = candidate.content.parts
             if not parts:
                 raise ImageGenerationError("No parts returned in content")
             
             last_part = parts[-1]
-            if "inline_data" not in last_part:
+            if not hasattr(last_part, 'inline_data') or not last_part.inline_data:
                 raise ImageGenerationError("Last part does not contain image data")
             
-            if "data" not in last_part["inline_data"]:
+            if not hasattr(last_part.inline_data, 'data') or not last_part.inline_data.data:
                 raise ImageGenerationError("Image data field is missing")
             
-            image_data_base64 = last_part["inline_data"]["data"]
+            raw_data = last_part.inline_data.data
+            
+            # Handle different data formats
+            if isinstance(raw_data, bytes):
+                # If data is already bytes, encode to base64 string
+                image_data_base64 = base64.b64encode(raw_data).decode('utf-8')
+            elif isinstance(raw_data, str):
+                # If data is a string, check if it has a data URI prefix
+                if raw_data.startswith('data:'):
+                    # Extract base64 part after comma
+                    image_data_base64 = raw_data.split(',', 1)[1]
+                else:
+                    # Assume it's already base64 string, strip whitespace
+                    image_data_base64 = raw_data.strip()
+            else:
+                raise ImageGenerationError(f"Unexpected data type: {type(raw_data)}")
             
             # Validate base64 data
             if not image_data_base64:
@@ -216,20 +223,6 @@ async def generate_image(prompt: str) -> str:
                 "generation_stopped_error",
                 "Image generation was stopped by the API",
                 {"stop_reason": str(e)}
-            )
-        except genai.types.SafetySettingsException as e:
-            logger.error(f"Safety settings violation: {e}")
-            return create_error_response(
-                "safety_violation_error",
-                "Prompt violates safety settings",
-                {"violation_details": str(e)}
-            )
-        except genai.types.APIError as e:
-            logger.error(f"Gemini API error: {e}")
-            return create_error_response(
-                "api_error",
-                f"Gemini API error: {str(e)}",
-                {"api_error_code": getattr(e, 'code', 'unknown')}
             )
         except ImageGenerationError as e:
             logger.error(f"Image generation error: {e}")
@@ -458,34 +451,44 @@ async def edit_image(image_url: str, prompt: str) -> str:
             if not response:
                 raise ImageGenerationError("Gemini API returned empty response")
             
-            response_dict = response.to_dict()
-            
-            # Validate response structure (same as generate_image)
-            if "candidates" not in response_dict:
-                raise ImageGenerationError("Invalid response structure: missing 'candidates' field")
-            
-            if not response_dict["candidates"]:
+            # Access response attributes directly (AsyncGenerateContentResponse doesn't have to_dict())
+            if not hasattr(response, 'candidates') or not response.candidates:
                 raise ImageGenerationError("No candidates returned from Gemini API")
             
-            candidate = response_dict["candidates"][0]
-            if "content" not in candidate:
+            candidate = response.candidates[0]
+            if not hasattr(candidate, 'content') or not candidate.content:
                 raise ImageGenerationError("Invalid candidate structure: missing 'content' field")
             
-            if "parts" not in candidate["content"]:
+            if not hasattr(candidate.content, 'parts') or not candidate.content.parts:
                 raise ImageGenerationError("Invalid content structure: missing 'parts' field")
             
-            parts = candidate["content"]["parts"]
+            parts = candidate.content.parts
             if not parts:
                 raise ImageGenerationError("No parts returned in content")
             
             last_part = parts[-1]
-            if "inline_data" not in last_part:
+            if not hasattr(last_part, 'inline_data') or not last_part.inline_data:
                 raise ImageGenerationError("Last part does not contain image data")
             
-            if "data" not in last_part["inline_data"]:
+            if not hasattr(last_part.inline_data, 'data') or not last_part.inline_data.data:
                 raise ImageGenerationError("Image data field is missing")
             
-            image_data_base64 = last_part["inline_data"]["data"]
+            raw_data = last_part.inline_data.data
+            
+            # Handle different data formats
+            if isinstance(raw_data, bytes):
+                # If data is already bytes, encode to base64 string
+                image_data_base64 = base64.b64encode(raw_data).decode('utf-8')
+            elif isinstance(raw_data, str):
+                # If data is a string, check if it has a data URI prefix
+                if raw_data.startswith('data:'):
+                    # Extract base64 part after comma
+                    image_data_base64 = raw_data.split(',', 1)[1]
+                else:
+                    # Assume it's already base64 string, strip whitespace
+                    image_data_base64 = raw_data.strip()
+            else:
+                raise ImageGenerationError(f"Unexpected data type: {type(raw_data)}")
             
             # Validate base64 data
             if not image_data_base64:
@@ -517,20 +520,6 @@ async def edit_image(image_url: str, prompt: str) -> str:
                 "generation_stopped_error",
                 "Image editing was stopped by the API",
                 {"stop_reason": str(e)}
-            )
-        except genai.types.SafetySettingsException as e:
-            logger.error(f"Safety settings violation: {e}")
-            return create_error_response(
-                "safety_violation_error",
-                "Prompt violates safety settings",
-                {"violation_details": str(e)}
-            )
-        except genai.types.APIError as e:
-            logger.error(f"Gemini API error: {e}")
-            return create_error_response(
-                "api_error",
-                f"Gemini API error: {str(e)}",
-                {"api_error_code": getattr(e, 'code', 'unknown')}
             )
         except ImageGenerationError as e:
             logger.error(f"Image editing error: {e}")
