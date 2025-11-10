@@ -2,7 +2,10 @@
 import os, base64, requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from dotenv import load_dotenv
 import google.generativeai as genai
+
+load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 CLOUDINARY_URL = os.getenv("CLOUDINARY_URL", "")  # cloudinary://<key>:<secret>@<cloud>
@@ -37,11 +40,33 @@ def generate_image(req: GenerateReq):
     try:
         model = genai.GenerativeModel(MODEL)
         # Text → Image
-        res = model.generate_images(req.prompt)
-        if not res or not res.generated_images:
-            raise HTTPException(502, "gemini_no_image_returned")
-        b64 = res.generated_images[0].image_base64
+        response = model.generate_content([f"Generate a high-quality, detailed image of: {req.prompt}"])
+        
+        if not response:
+            raise HTTPException(status_code=502, detail="gemini_no_image_returned")
+        
+        response_dict = response.to_dict()
+        
+        # Validate response structure
+        if "candidates" not in response_dict or not response_dict["candidates"]:
+            raise HTTPException(status_code=502, detail="gemini_no_image_returned")
+        
+        candidate = response_dict["candidates"][0]
+        if "content" not in candidate or "parts" not in candidate["content"]:
+            raise HTTPException(status_code=502, detail="gemini_invalid_response_structure")
+        
+        parts = candidate["content"]["parts"]
+        if not parts:
+            raise HTTPException(status_code=502, detail="gemini_no_image_returned")
+        
+        last_part = parts[-1]
+        if "inline_data" not in last_part or "data" not in last_part["inline_data"]:
+            raise HTTPException(status_code=502, detail="gemini_no_image_returned")
+        
+        b64 = last_part["inline_data"]["data"]
         url = upload_cloudinary_b64(b64)
         return {"url": url, "provider": "nano_banana", "tool": "generate"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"gemini_error: {e}")
