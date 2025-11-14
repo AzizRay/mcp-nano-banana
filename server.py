@@ -95,54 +95,6 @@ def upload_cloudinary_b64(b64_png: str, folder="ayoon/imageops"):
 def health():
     return {"ok": True, "service": "nano-banana-bridge", "builder": bool(PROMPT_SPEC)}
 
-def extract_metadata_from_response(response, response_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Extract seed and cost from Gemini API response.
-    Checks both response object attributes and response_dict for metadata.
-    """
-    seed = None
-    cost = None
-    
-    # Try to get from response object attributes
-    if hasattr(response, 'response'):
-        headers = getattr(response.response, 'headers', {}) if hasattr(response.response, 'headers') else {}
-        # Check common header names for seed
-        for header_name in ['x-seed', 'seed', 'x-generation-seed', 'X-Seed', 'Seed']:
-            if header_name in headers:
-                seed = str(headers[header_name])
-                break
-        
-        # Check common header names for cost
-        for header_name in ['x-cost', 'x-usage-cost', 'cost', 'x-api-cost', 'X-Cost', 'Cost']:
-            if header_name in headers:
-                cost = str(headers[header_name])
-                break
-    
-    # Also check response_dict for metadata
-    if seed is None:
-        # Check top-level keys
-        for key in ['seed', 'generation_seed', 'x_seed']:
-            if key in response_dict:
-                seed = str(response_dict[key])
-                break
-        
-        # Check in usage_metadata if present
-        if 'usage_metadata' in response_dict:
-            usage = response_dict['usage_metadata']
-            if 'seed' in usage:
-                seed = str(usage['seed'])
-            if 'cost' in usage:
-                cost = str(usage['cost'])
-    
-    if cost is None:
-        # Check top-level keys for cost
-        for key in ['cost', 'usage_cost', 'api_cost', 'x_cost']:
-            if key in response_dict:
-                cost = str(response_dict[key])
-                break
-    
-    return {"seed": seed, "cost": cost}
-
 @app.post("/generate")
 def generate_image(req: GenerateReq):
     """
@@ -184,11 +136,6 @@ def generate_image(req: GenerateReq):
             raise HTTPException(status_code=502, detail="gemini_no_image_returned")
         
         response_dict = response.to_dict()
-        
-        # Extract seed and cost from response
-        metadata = extract_metadata_from_response(response, response_dict)
-        seed = metadata.get("seed")
-        cost = metadata.get("cost")
         
         # Validate response structure
         if "candidates" not in response_dict or not response_dict["candidates"]:
@@ -248,12 +195,6 @@ def generate_image(req: GenerateReq):
             "status": "success",
             "prompt": actual_prompt
         }
-        
-        # Add seed and cost only if they exist
-        if seed is not None:
-            meta["seed"] = seed
-        if cost is not None:
-            meta["cost"] = cost
         
         # Keep builder meta only in debug (not merged into main meta)
         if builder_meta:
