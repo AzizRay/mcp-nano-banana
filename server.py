@@ -9,6 +9,7 @@ from prompt_builder import compose_prompt
 
 load_dotenv()
 
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 CLOUDINARY_URL = os.getenv("CLOUDINARY_URL", "")  # cloudinary://<key>:<secret>@<cloud>
 
