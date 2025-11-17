@@ -41,7 +41,9 @@ def upload_cloudinary_b64(b64_png: str, folder="ayoon/imageops"):
     """
     try:
         # Parse Cloudinary URL: cloudinary://key:secret@cloud
-        parts = CLOUDINARY_URL.replace("cloudinary://", "").split("@")
+        # Strip whitespace to handle trailing newlines
+        url = CLOUDINARY_URL.strip()
+        parts = url.replace("cloudinary://", "").split("@")
         if len(parts) != 2:
             raise ValueError("Invalid CLOUDINARY_URL format")
         
@@ -49,9 +51,9 @@ def upload_cloudinary_b64(b64_png: str, folder="ayoon/imageops"):
         if len(credentials) != 2:
             raise ValueError("Invalid CLOUDINARY_URL credentials format")
         
-        api_key = credentials[0]
-        api_secret = credentials[1]
-        cloud_name = parts[1]
+        api_key = credentials[0].strip()
+        api_secret = credentials[1].strip()
+        cloud_name = parts[1].strip()
         
         # Prepare parameters for signed upload
         timestamp = int(time.time())
