@@ -41,12 +41,51 @@ class EditImageReq(BaseModel):
     image_url: str
     prompt: str
 
+def resize_image_b64(b64_image: str, target_width: int = 720, target_height: int = 1280) -> str:
+    """
+    Resize base64 image to target dimensions while maintaining aspect ratio.
+    Returns base64 string of resized image.
+    """
+    try:
+        # Decode base64 to image
+        image_data = base64.b64decode(b64_image)
+        image = Image.open(BytesIO(image_data))
+        
+        # Convert to RGB if necessary
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Resize with aspect ratio preservation (fit within 720x1280)
+        image.thumbnail((target_width, target_height), Image.Resampling.LANCZOS)
+        
+        # Create new image with exact dimensions and paste resized image centered
+        new_image = Image.new('RGB', (target_width, target_height), (255, 255, 255))
+        
+        # Calculate position to center the image
+        x_offset = (target_width - image.width) // 2
+        y_offset = (target_height - image.height) // 2
+        
+        new_image.paste(image, (x_offset, y_offset))
+        
+        # Convert back to base64
+        buffer = BytesIO()
+        new_image.save(buffer, format='PNG')
+        resized_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        return resized_b64
+    except Exception as e:
+        raise ValueError(f"Image resize error: {str(e)}")
+
 def upload_cloudinary_b64(b64_png: str, folder="ayoon/imageops"):
     """
     Upload base64 image to Cloudinary using signed upload.
+    Images are resized to 720x1280 before upload.
     CLOUDINARY_URL format: cloudinary://api_key:api_secret@cloud_name
     """
     try:
+        # Resize image to 720x1280 before uploading
+        b64_png = resize_image_b64(b64_png, target_width=720, target_height=1280)
+        
         # Parse Cloudinary URL: cloudinary://key:secret@cloud
         # Strip whitespace to handle trailing newlines
         url = CLOUDINARY_URL.strip()
