@@ -43,7 +43,8 @@ class EditImageReq(BaseModel):
 
 def resize_image_b64(b64_image: str, target_width: int = 720, target_height: int = 1280) -> str:
     """
-    Resize base64 image to target dimensions while maintaining aspect ratio.
+    Resize base64 image to exactly target dimensions (720x1280).
+    Uses resize and crop to fill the entire canvas.
     Returns base64 string of resized image.
     """
     try:
@@ -55,21 +56,30 @@ def resize_image_b64(b64_image: str, target_width: int = 720, target_height: int
         if image.mode != 'RGB':
             image = image.convert('RGB')
         
-        # Resize with aspect ratio preservation (fit within 720x1280)
-        image.thumbnail((target_width, target_height), Image.Resampling.LANCZOS)
+        # Calculate scaling to fill the target dimensions (cover, not fit)
+        # We want to resize so the image covers the entire 720x1280 area
+        width_ratio = target_width / image.width
+        height_ratio = target_height / image.height
         
-        # Create new image with exact dimensions and paste resized image centered
-        new_image = Image.new('RGB', (target_width, target_height), (255, 255, 255))
+        # Use the larger ratio to ensure the image covers the entire area
+        scale_ratio = max(width_ratio, height_ratio)
         
-        # Calculate position to center the image
-        x_offset = (target_width - image.width) // 2
-        y_offset = (target_height - image.height) // 2
+        # Resize the image
+        new_width = int(image.width * scale_ratio)
+        new_height = int(image.height * scale_ratio)
+        resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
         
-        new_image.paste(image, (x_offset, y_offset))
+        # Crop to exact target dimensions (center crop)
+        left = (new_width - target_width) // 2
+        top = (new_height - target_height) // 2
+        right = left + target_width
+        bottom = top + target_height
+        
+        cropped_image = resized_image.crop((left, top, right, bottom))
         
         # Convert back to base64
         buffer = BytesIO()
-        new_image.save(buffer, format='PNG')
+        cropped_image.save(buffer, format='PNG')
         resized_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
         
         return resized_b64
